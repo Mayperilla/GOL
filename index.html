@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>🎯 Penales: Tú vs 🎯</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; user-select:none; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #0a0a0a;
+      font-family: 'Segoe UI', sans-serif;
+      overflow: hidden;
+    }
+
+    #container {
+      display: flex;
+      flex-direction: row;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #game {
+      width: 60%;
+      height: 100%;
+      position: relative;
+    }
+
+    #sidebar {
+      width: 40%;
+      height: 100%;
+      background: #1a1a1a;
+      padding: 20px;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: center;
+      gap: 20px;
+      overflow-y: auto;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      background: #388e3c url('https://png.pngtree.com/png-vector/20220208/ourmid/pngtree-football-soccer-field-pitch-vector-rubber-pitch-fifa-vector-png-image_3320421.jpg') center bottom no-repeat;
+      background-size: cover;
+      display: block;
+    }
+
+    #setup input, #setup button, label {
+      width:100%; padding:10px; margin:8px 0;
+      border:1px solid #444; border-radius:4px;
+      background:#222; color:#eee; font-size:1rem;
+    }
+    #setup button { background:#0288d1; cursor:pointer; }
+
+    #message {
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%,-50%);
+      font-size:3rem;
+      font-weight:bold;
+      text-shadow: 2px 2px 5px black;
+      color: gold;
+      display: none;
+      animation: pulse 1s infinite;
+      pointer-events: none;
+    }
+
+    @keyframes pulse {
+      0% { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+      50% { transform: translate(-50%,-50%) scale(1.1); opacity: 0.8; }
+      100% { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+    }
+
+    #scoreboard {
+      font-size: 1.2rem;
+    }
+
+    #mobileControls {
+      display: none;
+      margin-top: 10px;
+      width: 100%;
+      display: flex;
+      justify-content: space-around;
+    }
+    #mobileControls button {
+      width: 60px;
+      height: 60px;
+      font-size: 2rem;
+      background: #444;
+      border: none;
+      border-radius: 50%;
+      color: #fff;
+      cursor: pointer;
+      box-shadow: 0 0 10px #000;
+    }
+
+    @media (max-width: 768px) {
+      #container { flex-direction: column; }
+      #game { width: 100%; height: 60%; }
+      #sidebar { width: 100%; height: 40%; }
+      #mobileControls { display: flex; }
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <div id="game">
+      <canvas id="canvas"></canvas>
+      <div id="message"></div>
+    </div>
+    <div id="sidebar">
+      <div id="setup">
+        <input type="text" id="nameInput" placeholder="Nombre del arquero" />
+        <input type="file" id="photoInput" accept="image/*" />
+        <label>
+          Velocidad de tiro:
+          <input type="range" id="speedInput" min="2" max="10" value="6" />
+        </label>
+        <button id="startBtn">Iniciar Juego</button>
+      </div>
+      <div id="scoreboard">
+        <div>Goles: <span id="goals">0</span></div>
+        <div>Aciertos: <span id="saves">0</span></div>
+      </div>
+      <!-- Controles móviles izquierda/derecha -->
+      <div id="mobileControls">
+        <button data-dir="left">⬅️</button>
+        <button data-dir="right">➡️</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    const setup   = document.getElementById('setup');
+    const startBtn= document.getElementById('startBtn');
+    const nameIn  = document.getElementById('nameInput');
+    const photoIn = document.getElementById('photoInput');
+    const speedIn = document.getElementById('speedInput');
+    const canvas  = document.getElementById('canvas');
+    const ctx     = canvas.getContext('2d');
+    const msgDiv  = document.getElementById('message');
+    const goalsEl = document.getElementById('goals');
+    const savesEl = document.getElementById('saves');
+    const mobileC = document.getElementById('mobileControls');
+
+    let goalieImg = new Image();
+    let goalieName = 'Arquero';
+    let speed = 6, goals=0, saves=0;
+    let ball, goalie, loopId;
+
+    function resizeCanvas(){
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function initGame(){
+      goalieName = nameIn.value || 'Arquero';
+      speed = +speedIn.value;
+      if(photoIn.files[0]){
+        goalieImg.src = URL.createObjectURL(photoIn.files[0]);
+      } else {
+        goalieImg.src = '';
+      }
+      goals=0; saves=0; goalsEl.textContent=0; savesEl.textContent=0;
+      resizeCanvas(); initEntities();
+      clearInterval(loopId);
+      loopId = setInterval(update, 1000/60);
+    }
+
+    function initEntities(){
+      goalie = {
+        w:60, h:80,
+        x:(canvas.width-60)/2,
+        y:canvas.height-80-10,
+      };
+      makeBall();
+    }
+
+    function makeBall(){
+      ball = {
+        r:12,
+        x: Math.random()*(canvas.width-40)+20,
+        y: 20,
+        vx: (canvas.width/2 - (goalie.x+goalie.w/2))*0.005,
+        vy: speed
+      };
+    }
+
+    function update(){
+      ball.x += ball.vx; ball.y += ball.vy;
+      if(ball.y + ball.r >= goalie.y){
+        if(ball.x > goalie.x && ball.x < goalie.x+goalie.w){
+          saves++; savesEl.textContent = saves;
+          showMessage('👏 Aplausos 👏');
+        } else {
+          goals++; goalsEl.textContent = goals;
+          showMessage('⚽️ ¡GOOOOOOOL! ⚽️');
+        }
+        makeBall();
+      }
+      draw();
+    }
+
+    function draw(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      if(goalieImg.src){ ctx.drawImage(goalieImg, goalie.x, goalie.y, goalie.w, goalie.h);
+      } else { ctx.fillStyle='#444'; ctx.fillRect(goalie.x, goalie.y, goalie.w, goalie.h); }
+      ctx.fillStyle='#fff'; ctx.font='14px sans-serif'; ctx.fillText(goalieName, goalie.x, goalie.y-6);
+      ctx.beginPath(); ctx.fillStyle='white'; ctx.arc(ball.x, ball.y, ball.r,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#000'; ctx.stroke();
+    }
+
+    function showMessage(txt){
+      msgDiv.textContent = txt;
+      msgDiv.style.display='block';
+      setTimeout(()=> msgDiv.style.display='none', 1200);
+    }
+
+    document.addEventListener('keydown', e=>{
+      if(e.key==='ArrowLeft') goalie.x = Math.max(0, goalie.x-20);
+      if(e.key==='ArrowRight') goalie.x = Math.min(canvas.width-goalie.w, goalie.x+20);
+    });
+    mobileC.addEventListener('click', e=>{
+      if(!e.target.dataset.dir) return;
+      if(e.target.dataset.dir==='left') goalie.x = Math.max(0, goalie.x-20);
+      if(e.target.dataset.dir==='right') goalie.x = Math.min(canvas.width-goalie.w, goalie.x+20);
+    });
+    startBtn.addEventListener('click', initGame);
+  })();
+  </script>
+</body>
+</html>
