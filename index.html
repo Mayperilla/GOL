@@ -52,10 +52,6 @@
       display:none; width:100%; padding:10px; background:#ff5722; color:#fff; border:none; border-radius:4px;
       font-size:1rem; cursor:pointer;
     }
-    #fullscreenBtn {
-      width:100%; padding:10px; background:#4caf50; color:#fff; border:none; border-radius:4px;
-      font-size:1rem; cursor:pointer;
-    }
     @media (max-width:768px) {
       #container { flex-direction:column; }
       #game { width:100%; height:60%; }
@@ -80,7 +76,6 @@
         <button id="startBtn">Iniciar Juego</button>
       </div>
       <button id="restartBtn">Empezar de nuevo</button>
-      <button id="fullscreenBtn">Pantalla completa</button>
       <div id="scoreboard">
         <div>Goles: <span id="goals">0</span></div>
         <div>Aciertos: <span id="saves">0</span></div>
@@ -96,7 +91,6 @@
       const setup   = document.getElementById('setup');
       const restart = document.getElementById('restartBtn');
       const startBtn= document.getElementById('startBtn');
-      const fullBtn = document.getElementById('fullscreenBtn');
       const nameIn  = document.getElementById('nameInput');
       const photoIn = document.getElementById('photoInput');
       const speedIn = document.getElementById('speedInput');
@@ -119,6 +113,7 @@
       window.addEventListener('resize', resizeCanvas);
 
       function initGame(){
+        // hide setup, show restart
         setup.style.display='none';
         restart.style.display='block';
 
@@ -172,15 +167,6 @@
         msgDiv.textContent=txt;msgDiv.style.display='block';
         setTimeout(()=>msgDiv.style.display='none',1200);
       }
-
-      fullBtn.addEventListener('click',()=>{
-        const el = document.documentElement;
-        if(!document.fullscreenElement){
-          if(el.requestFullscreen) el.requestFullscreen();
-        } else {
-          if(document.exitFullscreen) document.exitFullscreen();
-        }
-      });
 
       document.addEventListener('keydown',e=>{if(e.key==='ArrowLeft') goalie.x=Math.max(0,goalie.x-20); if(e.key==='ArrowRight') goalie.x=Math.min(canvas.width-goalie.w,goalie.x+20);});
       mobileC.addEventListener('click',e=>{if(!e.target.dataset.dir)return; if(e.target.dataset.dir==='left') goalie.x=Math.max(0,goalie.x-20); if(e.target.dataset.dir==='right') goalie.x=Math.min(canvas.width-goalie.w,goalie.x+20);});
